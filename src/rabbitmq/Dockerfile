@@ -1,6 +1,9 @@
-FROM python:3.9
+From python:3.11
+
 COPY . /rabbitmq
 COPY requirements.txt /rabbitmq
-WORKDIR /rabbitmq
+WORKDIR /rabbitmqy
 RUN pip install -r requirements.txt
-CMD ["python3", "worker.py"]
+
+EXPOSE 8040
+CMD gunicorn --workers=4 --bind 0.0.0.0:8040 app:app

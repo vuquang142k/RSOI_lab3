@@ -13,49 +13,34 @@ services:
       - ./postgres/:/docker-entrypoint-initdb.d/
     ports:
       - "5432:5432"
-    networks:
-      default:
-        ipv4_address: 10.5.0.2
 
   gateway:
-    build: src/gateway-service/
-    container_name: gateway-cont
+    build: src/gateway/
+    container_name: gateway
     restart: on-failure
     ports:
       - "8080:8080"
-    networks:
-      default:
-        ipv4_address: 10.5.0.3
-
-  bonus:
-    build: src/bonus-service/
-    container_name: bonus-cont
-    restart: on-failure
-    ports:
-      - "8050:8050"
-    networks:
-      default:
-        ipv4_address: 10.5.0.4
 
   flight:
-    build: src/flight-service/
-    container_name: flight-cont
+    build: src/flight/
+    container_name: flight
     restart: on-failure
     ports:
       - "8060:8060"
-    networks:
-      default:
-        ipv4_address: 10.5.0.5
+
+  privilege:
+    build: src/privilege/
+    container_name: privilege
+    restart: on-failure
+    ports:
+      - "8050:8050"
 
   ticket:
-    build: src/ticket-service/
-    container_name: ticket-cont
+    build: src/ticket/
+    container_name: ticket
     restart: on-failure
     ports:
       - "8070:8070"
-    networks:
-      default:
-        ipv4_address: 10.5.0.6
 
   rabbitmq:
     image: rabbitmq:3
@@ -63,25 +48,13 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
-    networks:
-      default:
-        ipv4_address: 10.5.0.7
 
   worker:
     build: src/rabbitmq/
     container_name: worker-cont
     restart: on-failure
-    networks:
-      default:
-        ipv4_address: 10.5.0.8
-       
+    ports:
+      - "8040:8040"
+
 volumes:
   db-data:
-
-networks:
-  default:
-    driver: bridge
-    ipam:
-     config:
-       - subnet: 10.5.0.0/16
-         gateway: 10.5.0.1
