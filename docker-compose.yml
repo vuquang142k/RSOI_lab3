@@ -13,40 +13,49 @@ services:
       - ./postgres/:/docker-entrypoint-initdb.d/
     ports:
       - "5432:5432"
-
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 15s
-      timeout: 15s
-      retries: 2
+    networks:
+      default:
+        ipv4_address: 10.5.0.2
 
   gateway:
-    build: src/gateway/
-    container_name: gateway
+    build: src/gateway-service/
+    container_name: gateway-cont
     restart: on-failure
     ports:
       - "8080:8080"
+    networks:
+      default:
+        ipv4_address: 10.5.0.3
 
-  flight:
-    build: src/flight/
-    container_name: flight
-    restart: on-failure
-    ports:
-      - "8060:8060"
-
-  privilege:
-    build: src/privilege/
-    container_name: privilege
+  bonus:
+    build: src/bonus-service/
+    container_name: bonus-cont
     restart: on-failure
     ports:
       - "8050:8050"
+    networks:
+      default:
+        ipv4_address: 10.5.0.4
+
+  flight:
+    build: src/flight-service/
+    container_name: flight-cont
+    restart: on-failure
+    ports:
+      - "8060:8060"
+    networks:
+      default:
+        ipv4_address: 10.5.0.5
 
   ticket:
-    build: src/ticket/
-    container_name: ticket
+    build: src/ticket-service/
+    container_name: ticket-cont
     restart: on-failure
     ports:
       - "8070:8070"
+    networks:
+      default:
+        ipv4_address: 10.5.0.6
 
   rabbitmq:
     image: rabbitmq:3
@@ -54,13 +63,25 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+    networks:
+      default:
+        ipv4_address: 10.5.0.7
 
   worker:
     build: src/rabbitmq/
     container_name: worker-cont
     restart: on-failure
-    ports:
-      - "8040:8040"
-
+    networks:
+      default:
+        ipv4_address: 10.5.0.8
+       
 volumes:
   db-data:
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 10.5.0.0/16
+         gateway: 10.5.0.1
