@@ -14,7 +14,53 @@ services:
     ports:
       - "5432:5432"
 
-# TODO добавить сервисы
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 15s
+      timeout: 15s
+      retries: 2
+
+  gateway:
+    build: src/gateway/
+    container_name: gateway
+    restart: on-failure
+    ports:
+      - "8080:8080"
+
+  flight:
+    build: src/flight/
+    container_name: flight
+    restart: on-failure
+    ports:
+      - "8060:8060"
+
+  privilege:
+    build: src/privilege/
+    container_name: privilege
+    restart: on-failure
+    ports:
+      - "8050:8050"
+
+  ticket:
+    build: src/ticket/
+    container_name: ticket
+    restart: on-failure
+    ports:
+      - "8070:8070"
+
+  rabbitmq:
+    image: rabbitmq:3
+    container_name: rabbitmq-cont
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+  worker:
+    build: src/rabbitmq/
+    container_name: worker-cont
+    restart: on-failure
+    ports:
+      - "8040:8040"
 
 volumes:
   db-data:
