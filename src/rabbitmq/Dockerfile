@@ -2,7 +2,7 @@ From python:3.11
 
 COPY . /rabbitmq
 COPY requirements.txt /rabbitmq
-WORKDIR /rabbitmqy
+WORKDIR /rabbitmq
 RUN pip install -r requirements.txt
 
 EXPOSE 8040
