@@ -1,7 +1,7 @@
 import requests
 import time
 import atexit
-
+from circuitbreaker import circuit
 from multiprocessing import Queue
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request, jsonify, make_response
@@ -58,11 +58,12 @@ ticket_ip = "ticket"
 
 
 # Получить список всех перелетов
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/manage/health', methods=["GET"])
 def health():
     return {}, 200
 
-
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/flights', methods=["GET"])
 def get_flights():
     page = request.args.get("page")
@@ -88,6 +89,7 @@ def get_flights():
 # Получить полную информацию о пользователе
 # Возвращается информация о билетах и статусе в системе привилегии.
 # X-User-Name: {{username}}
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/me', methods=["GET"])
 def get_person():
     user = request.headers
@@ -141,6 +143,7 @@ def get_person():
 
 # Получить информацию о всех билетах пользователя
 # X-User-Name: {{username}}
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/tickets', methods=["GET"])
 def get_tickets():
     user = request.headers
@@ -164,6 +167,7 @@ def get_tickets():
 
 # Получить информацию о всех билетах пользователя
 # X-User-Name: {{username}}
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/tickets/<ticketUid>', methods=["GET"])
 def get_ticket(ticketUid: str):
     user = request.headers
@@ -185,6 +189,7 @@ def get_ticket(ticketUid: str):
 
 # Возврат билета
 # X-User-Name: {{username}}
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/tickets/<ticketUid>', methods=["DELETE"])
 def delete_ticket(ticketUid: str):
     user = request.headers
@@ -231,6 +236,7 @@ def delete_ticket(ticketUid: str):
 #   "price": 1500,
 #   "paidFromBalance": true
 # }
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/tickets', methods=["POST"])
 def post_ticket():
     # проверка существования рейса (flightNumber), если флаг привелегий установлен то списываем привелегии
@@ -320,6 +326,7 @@ def post_ticket():
 
 # Получить информацию о состоянии бонусного счета
 # X-User-Name: {{username}}
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route('/api/v1/privilege', methods=["GET"])
 def get_privilege():
     user = request.headers
@@ -343,7 +350,7 @@ def get_privilege():
         # Bonus Service unavailable
         return {"message": "Bonus Service unavailable"}, 503
 
-
+@circuit(failure_threshold = 3, recovery_timeout = 5)
 @app.route(f"/api/v1/flights/<ticketUid>", methods=["GET"])
 def get_flight_byticket(ticketUid: str):
     status_req = 503

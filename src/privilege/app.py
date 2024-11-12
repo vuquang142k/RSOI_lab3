@@ -1,12 +1,15 @@
 from privilegedb import Privilegedb
 from flask import Flask, request, jsonify, make_response
+from circuitbreaker import circuit
 
 app = Flask(__name__)
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/manage/health', methods=["GET"])
 def health():
     return {}, 200
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/privilege/<user>', methods=["GET"])
 def get_base_privilege(user: str):
     privilegedb = Privilegedb()
@@ -20,6 +23,7 @@ def get_base_privilege(user: str):
     else:
         return 404
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/privileges/<user>', methods=["GET"])
 def get_all_privilege(user: str):
     print(user)
@@ -47,7 +51,7 @@ def get_all_privilege(user: str):
     else:
         return {}, 404
 
-
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route("/api/v1/buy", methods=["POST"])
 def minus_bonuses():
     privilegedb = Privilegedb()
@@ -74,7 +78,7 @@ def minus_bonuses():
         }
     return json_privil, 200
 
-
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route("/api/v1/back_bonuses", methods=["POST"])
 def back_bonuses():
     privilegedb = Privilegedb()

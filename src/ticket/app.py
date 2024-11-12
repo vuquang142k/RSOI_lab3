@@ -3,16 +3,19 @@ import requests
 
 from ticketsdb import Ticketsdb
 from flask import Flask, request, jsonify, make_response
+from circuitbreaker import circuit
 
 app = Flask(__name__)
 
 gateway_ip = "gateway"
 # gateway_ip = "localhost"
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/manage/health', methods=["GET"])
 def health():
     return {}, 200
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/tickets/<user>', methods=["GET"])
 def get_tickets(user: str):
     ticketsdb = Ticketsdb()
@@ -52,7 +55,7 @@ def get_tickets(user: str):
     else:
         return {}, 404
 
-
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/tickets', methods=["POST"])
 def get_tickets_post():
     ticketsdb = Ticketsdb()
@@ -70,7 +73,7 @@ def get_tickets_post():
     else:
         return 400
 
-
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/tickets/<user_login>/<ticketUid>', methods=["GET"])
 def get_oneticket(user_login: str, ticketUid: str):
     ticketsdb = Ticketsdb()
@@ -89,7 +92,7 @@ def get_oneticket(user_login: str, ticketUid: str):
     }
     return js_ticket, 200
 
-
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/tickets/<user_login>/<ticketUid>', methods=["DELETE"])
 def cancel_ticket(user_login: str, ticketUid: str):
     ticketsdb = Ticketsdb()
@@ -99,6 +102,7 @@ def cancel_ticket(user_login: str, ticketUid: str):
     else:
         return {}, 404
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/tickets/delete/<user_login>/<ticketUid>', methods=["DELETE"])
 def delete_ticket(user_login: str, ticketUid: str):
     ticketsdb = Ticketsdb()

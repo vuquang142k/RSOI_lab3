@@ -1,12 +1,15 @@
 from flightdb import Flightdb
 from flask import Flask, request, jsonify, make_response
+from circuitbreaker import circuit
 
 app = Flask(__name__)
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/manage/health', methods=["GET"])
 def health():
     return {}, 200
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/flights', methods=["GET"])
 def get_flights():
     page = int(request.args.get("page"))
@@ -36,6 +39,7 @@ def get_flights():
     else:
         return {}, 404
 
+@circuit(failure_threshold = 5, recovery_timeout = 10)
 @app.route('/api/v1/flights/<flight_num>', methods=["GET"])
 def get_flights_byticket(flight_num: str):
     flightdb = Flightdb()
