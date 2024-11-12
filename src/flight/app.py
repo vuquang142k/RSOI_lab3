@@ -1,48 +1,44 @@
-import flightdb
+from flightdb import Flightdb
 from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
 
-@app.route('/')
-def FS_hello_world():
-    statement = 'Flight service!'
-    return statement
-
-@app.route('/manage/health', methods=['GET'])
-def FS_health_check():
-    return 200
+@app.route('/manage/health', methods=["GET"])
+def health():
+    return {}, 200
 
 @app.route('/api/v1/flights', methods=["GET"])
 def get_flights():
-    flightdb.create_flightsdb()
     page = int(request.args.get("page"))
     size = int(request.args.get("size"))
+    flightdb = Flightdb()
     flights = flightdb.get_flights(page, size)
     totalElements = len(flights)
     jsflights = []
-    print(flights)
-    for flight in flights:
-        jsfligt = {
-            "flightNumber": flight[0],
-            "fromAirport": flight[3] + " " + flight[4],
-            "toAirport": flight[1] + " " + flight[2],
-            "date": flight[5],
-            "price": flight[6],
-        }
-        jsflights.append(jsfligt)
+    if flights:
+        for flight in flights:
+            jsfligt = {
+                "flightNumber": flight[0],
+                "fromAirport": flight[3] + " " + flight[4],
+                "toAirport": flight[1] + " " + flight[2],
+                "date": flight[5],
+                "price": flight[6],
+            }
+            jsflights.append(jsfligt)
 
-    json_flights = {
-        "page": page,
-        "pageSize": size,
-        "totalElements": totalElements,
-        "items": jsflights
-    }
-    print(json_flights)
-    return json_flights, 200
+        json_flights = {
+            "page": page,
+            "pageSize": size,
+            "totalElements": totalElements,
+            "items": jsflights
+        }
+        return json_flights, 200
+    else:
+        return {}, 404
 
 @app.route('/api/v1/flights/<flight_num>', methods=["GET"])
 def get_flights_byticket(flight_num: str):
-    flightdb.create_flightsdb()
+    flightdb = Flightdb()
     info_flight = flightdb.get_flights_bynum(flight_num)
     if info_flight:
         json_flight = {
@@ -56,11 +52,9 @@ def get_flights_byticket(flight_num: str):
         return json_flight, 200
 
     else:
-        print("error")
-        return 404
+        return {}, 404
 
 
 if __name__ == '__main__':
-    flightdb.create_flightsdb()
     app.run(port=8060)
 

@@ -42,19 +42,6 @@ services:
     ports:
       - "8070:8070"
 
-  rabbitmq:
-    image: rabbitmq:3
-    container_name: rabbitmq-cont
-    ports:
-      - '5672:5672'
-      - '15672:15672'
-
-  worker:
-    build: src/rabbitmq/
-    container_name: worker-cont
-    restart: on-failure
-    ports:
-      - "8040:8040"
 
 volumes:
   db-data:

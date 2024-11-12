@@ -1,14 +1,46 @@
-import os
 import requests
-import pika
-import json
 import time
-import functools
+import atexit
 
+from multiprocessing import Queue
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
+back_bonuses_queue = Queue()
 
+
+def task():
+    if back_bonuses_queue.empty():
+        pass
+    else:
+        status = 503
+        n = 0
+        while not (status == 200 or n == 1):
+            try:
+                req = requests.get(url=f"http://{privilege_ip}:8050/manage/health")
+                status = req.status_code
+            except:
+                n += 1
+
+        if status == 200:
+            while not back_bonuses_queue.empty() and status == 200:
+                json_uid, user = back_bonuses_queue.get()
+                status = 0
+                try:
+                    req = requests.post(url=f"http://{privilege_ip}:8050/api/v1/back_bonuses", json=json_uid,
+                                        headers={"X-User-Name": user})
+                    status = req.status_code
+                except:
+                    pass
+
+                if status != 200:
+                    back_bonuses_queue.put((json_uid, user))
+
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=task, trigger="interval", seconds=10, max_instances=10)
+scheduler.start()
 
 # ports
 # gateway 8080
@@ -20,58 +52,38 @@ flights_ip = "flight"
 privilege_ip = "privilege"
 ticket_ip = "ticket"
 
-def circuit_breaker(max_retries, service_name):
-    def circuit_breaker_decorator(func):
-        @functools.wraps(func)
-        def _wrapper(*args, **kwargs):
-            for _ in range(max_retries):
-                try:
-                    result = func(*args, **kwargs)
-                    return result
-                except:
-                    time.sleep(1)
-            return {'message': f'{service_name} Service unavailable'}, 503
-        return _wrapper
-    return circuit_breaker_decorator
+# flights_ip = "localhost"
+# privilege_ip = "localhost"
+# ticket_ip = "localhost"
 
-@app.route('/')
-def GWS_hello_world():
-    statement = 'Gateway service!'
-    return statement
-
-@app.route('/manage/health', methods=['GET'])
-def GWS_health_check():
-    return 200
 
 # Получить список всех перелетов
+@app.route('/manage/health', methods=["GET"])
+def health():
+    return {}, 200
+
+
 @app.route('/api/v1/flights', methods=["GET"])
-@circuit_breaker(max_retries=5, service_name='Flight')
 def get_flights():
-    print(request.args)
     page = request.args.get("page")
     size = request.args.get("size")
-    print(page)
-    print(size)
-    flight_response = requests.get(url=f"http://{flights_ip}:8060/api/v1/flights?page={page}&size={size}")
-    # if flight_response.status_code == 202:
-    #     return {}, 202
-    if flight_response.status_code == 200:
-        print(123)
-        return flight_response.json(), 200
-    else:
-        print(44)
+
+    flight_status = 503
+    json_flight = {}
+    try:
+        flight_response = requests.get(url=f"http://{flights_ip}:8060/api/v1/flights?page={page}&size={size}")
+        flight_status = flight_response.status_code
+        json_flight = flight_response.json()
+    except:
+        pass
+
+    if flight_status == 200:
+        return json_flight, 200
+    elif flight_status == 404:
         return "не найдены полеты", 404
-
-@app.route('/api/v1/privilege', methods=['GET'])
-@circuit_breaker(max_retries=5, service_name='Bonus')
-def GWS_get_privilege():
-
-    response = requests.get(url=f"http://{privilege_ip}:8050/api/v1/privilege", headers=request.headers)
-
-    if response.status_code == 200:
-        return response.json(), 200
     else:
-        return "не найдены билеты пользователя", 404
+        return {}, 503
+
 
 # Получить полную информацию о пользователе
 # Возвращается информация о билетах и статусе в системе привилегии.
@@ -80,32 +92,52 @@ def GWS_get_privilege():
 def get_person():
     user = request.headers
     user = user["X-User-Name"]
-    tickets_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}")
-    privilege_info = requests.get(url=f"http://{privilege_ip}:8050/api/v1/privilege/{user}")
+    ticket_status = 503
+    privilege_status = 503
+    json_ticket = {}
+    json_privilege = {}
+    try:
+        tickets_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}")
+        ticket_status = tickets_info.status_code
+        json_ticket = tickets_info.json()
+    except:
+        pass
 
-    if tickets_info.status_code != 200 and privilege_info.status_code != 200:
-        return "не найдена программа привилегий для пользователя и билеты пользователя", 404
+    try:
+        privilege_info = requests.get(url=f"http://{privilege_ip}:8050/api/v1/privilege/{user}")
+        privilege_status = privilege_info.status_code
+        json_privilege = privilege_info.json()
+    except:
+        pass
 
-    if tickets_info.status_code != 200:
-        return "не найдены билеты пользователя", 404
+    if ticket_status == 200 and privilege_status == 200:
+        user_info = {
+            "tickets": json_ticket,
+            "privilege": json_privilege
+        }
+        return user_info, 200
 
-    if privilege_info.status_code != 200:
-        return "не найдена программа привилегий для пользователя", 404
+    elif ticket_status != 200 and privilege_status != 200:
+        if ticket_status == 404 and privilege_status == 404:
+            return {}, 404
+        return {}, 503
 
-    user_info = {
-        "tickets": tickets_info.json(),
-        "privilege": privilege_info.json()
-    }
-    return user_info, 200
+    elif ticket_status != 200:
+        user_info = {
+            "tickets": json_ticket,
+            "privilege": []
+        }
+        return user_info, 200
 
-@circuit_breaker(max_retries=5, service_name='Ticket')
-def get_info_tickets(api, headers):
-    return requests.get(api, headers=headers)
+    elif privilege_status != 200:
+        user_info = {
+            "tickets": [],
+            "privilege": json_privilege
+        }
+        return user_info, 200
+    else:
+        return {}, 503
 
-
-@circuit_breaker(max_retries=5, service_name='Flight')
-def get_info_flights(api, data):
-    return requests.get(api, data=data).json()
 
 # Получить информацию о всех билетах пользователя
 # X-User-Name: {{username}}
@@ -113,12 +145,21 @@ def get_info_flights(api, data):
 def get_tickets():
     user = request.headers
     user = user["X-User-Name"]
+    ticket_status = 0
+    json_ticket = {}
+    try:
+        tickets_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}")
+        ticket_status = tickets_info.status_code
+        json_ticket = tickets_info.json()
+    except:
+        pass
 
-    tickets_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}")
-    if tickets_info.status_code == 200:
-        return tickets_info.json(), 200
-    else:
+    if ticket_status == 200:
+        return json_ticket, 200
+    elif ticket_status == 404:
         return "не найдены билеты пользователя", 404
+    else:
+        return {}, 503
 
 
 # Получить информацию о всех билетах пользователя
@@ -127,9 +168,17 @@ def get_tickets():
 def get_ticket(ticketUid: str):
     user = request.headers
     user = user["X-User-Name"]
-    ticket_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}/{ticketUid}")
-    if ticket_info.status_code == 200:
-        return ticket_info.json(), 200
+    ticket_status = 503
+    json_ticket = {}
+    try:
+        ticket_info = requests.get(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}/{ticketUid}")
+        ticket_status = ticket_info.status_code
+        json_ticket = ticket_info.json()
+    except:
+        pass
+
+    if ticket_status == 200:
+        return json_ticket, 200
     else:
         return "не найдены билеты пользователя", 404
 
@@ -140,16 +189,35 @@ def get_ticket(ticketUid: str):
 def delete_ticket(ticketUid: str):
     user = request.headers
     user = user["X-User-Name"]
-    ticket_info = requests.delete(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}/{ticketUid}")
-    if ticket_info.status_code != 200:
-        return "Не найден билет", 404
+
+    ticket_status = 503
+    json_ticket = {}
+    try:
+        ticket_info = requests.delete(url=f"http://{ticket_ip}:8070/api/v1/tickets/{user}/{ticketUid}")
+        ticket_status = ticket_info.status_code
+        json_ticket = ticket_info.json()
+    except:
+        pass
+
+    if ticket_status != 200:
+        if json_ticket == 404:
+            return "Не найден билет", 404
+        return {}, 503
+
     json_uid = {
         "ticketUid": ticketUid
     }
-    status = requests.post(url=f"http://{privilege_ip}:8050/api/v1/back_bonuses", json=json_uid,
-                           headers={"X-User-Name": user})
-    if status.status_code != 200:
-        return "Не найдена программа боунусов, билет возвращен", 404
+    status_code = 0
+    try:
+        status = requests.post(url=f"http://{privilege_ip}:8050/api/v1/back_bonuses", json=json_uid,
+                               headers={"X-User-Name": user})
+        status_code = status.status_code
+    except:
+        pass
+
+    if status_code != 200:
+        back_bonuses_queue.put((json_uid, user))
+        return "Не найдена программа боунусов, билет возвращен", 204
     return "Билет успешно возвращен", 204
 
 
@@ -171,14 +239,40 @@ def post_ticket():
     user = user["X-User-Name"]
     json_req = request.json
 
-    flight_info = requests.get(url=f'http://{flights_ip}:8060/api/v1/flights/{json_req["flightNumber"]}')
-    if flight_info.status_code != 200:
-        return "не найден рейс", 404
-    json_flight = flight_info.json()
+    status_flight = 503
+    json_flight = {}
+    try:
+        flight_info = requests.get(url=f'http://{flights_ip}:8060/api/v1/flights/{json_req["flightNumber"]}')
+        status_flight = flight_info.status_code
+        json_flight = flight_info.json()
+    except:
+        pass
 
-    ticket_info = requests.post(url=f"http://{ticket_ip}:8070/api/v1/tickets", json=json_req,
-                                headers={"X-User-Name": user})
-    json_ticket = ticket_info.json()
+    if status_flight != 200:
+        if status_flight == 404:
+            return "не найден рейс", 404
+        else:
+            return {}, 503
+
+    json_flight = json_flight
+
+    status_ticket = 503
+    json_ticket = {}
+    try:
+        ticket_info = requests.post(url=f"http://{ticket_ip}:8070/api/v1/tickets", json=json_req,
+                                    headers={"X-User-Name": user})
+        status_ticket = ticket_info.status_code
+        json_ticket = ticket_info.json()
+    except:
+        pass
+
+    if status_ticket != 200:
+        if status_ticket == 400:
+            return "Ошибка валидации данных", 400
+        else:
+            # "Bonus Service unavailable"
+            return {"message": "Bonus Service unavailable"}, 503
+    json_ticket = json_ticket
 
     priv_json_send = {
         "paidFromBalance": json_req["paidFromBalance"],
@@ -186,9 +280,22 @@ def post_ticket():
         "price": json_req["price"]
     }
 
-    privil_info = requests.post(url=f"http://{privilege_ip}:8050/api/v1/buy", json=priv_json_send,
-                                headers={"X-User-Name": user})
-    json_privil = privil_info.json()
+    status_privil = 503
+    json_privil = {}
+    try:
+        privil_info = requests.post(url=f"http://{privilege_ip}:8050/api/v1/buy", json=priv_json_send,
+                                    headers={"X-User-Name": user})
+        status_privil = privil_info.status_code
+        json_privil = privil_info.json()
+    except:
+        pass
+
+    if status_privil != 200:
+        print(2)
+        requests.delete(f'http://{ticket_ip}:8070/api/v1/tickets/delete/{user}/{json_ticket["ticketUid"]}')
+        return {"message": "Bonus Service unavailable"}, 503
+
+    json_privil = json_privil
 
     json_out = {
         "ticketUid": json_ticket["ticketUid"],
@@ -205,8 +312,6 @@ def post_ticket():
             "status": json_privil["status"]
         }
     }
-    print(json_req["price"])
-    print(json_privil["paidByMoney"])
 
     return json_out, 200
 
@@ -219,15 +324,40 @@ def post_ticket():
 def get_privilege():
     user = request.headers
     user = user["X-User-Name"]
-    privilege_info = requests.get(url=f"http://{privilege_ip}:8050/api/v1/privileges/{user}")
-    return privilege_info.json(), 200
+
+    status_privilege = 503
+    json_privilege = {}
+    try:
+        privilege_info = requests.get(url=f"http://{privilege_ip}:8050/api/v1/privileges/{user}")
+        status_privilege = privilege_info.status_code
+        json_privilege = privilege_info.json()
+    except:
+        pass
 
 
-@app.route(f"/api/v1/flights/<flight_number>", methods=["GET"])
-def get_flight_byticket(flight_number: str):
-    req = requests.get(f"http://{flights_ip}:8060/api/v1/flights/{flight_number}")
-    return req.json(), 200
+    if status_privilege == 200:
+        return json_privilege, 200
+    elif status_privilege == 404:
+        return "Привелегии не найдены", 404
+    else:
+        # Bonus Service unavailable
+        return {"message": "Bonus Service unavailable"}, 503
+
+
+@app.route(f"/api/v1/flights/<ticketUid>", methods=["GET"])
+def get_flight_byticket(ticketUid: str):
+    status_req = 503
+    status_json = {}
+    try:
+        req = requests.get(f"http://{flights_ip}:8060/api/v1/flights/{ticketUid}")
+        status_req = req.status_code
+        status_json = req.json()
+    except:
+        pass
+
+    return status_json, status_req
 
 
 if __name__ == '__main__':
-    app.run(port=8080, debug=True)
+    app.run(port=8080, debug=False)
+    atexit.register(lambda: scheduler.shutdown())

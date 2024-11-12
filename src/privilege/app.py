@@ -1,52 +1,56 @@
-import privilegedb
+from privilegedb import Privilegedb
 from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
 
-@app.route('/')
-def BS_hello_world():
-    statement = 'Privilege service!'
-    return statement
-
-@app.route('/manage/health', methods=['GET'])
-def BS_health_check():
-    return 200
+@app.route('/manage/health', methods=["GET"])
+def health():
+    return {}, 200
 
 @app.route('/api/v1/privilege/<user>', methods=["GET"])
 def get_base_privilege(user: str):
-    privilegedb.create_privilegedb()
+    privilegedb = Privilegedb()
     privilege = privilegedb.get_base_privilege(user)
-    json_privilege = {
-        "balance": privilege[1],
-        "status": privilege[0]
-    }
-    return json_privilege, 200
+    if privilege:
+        json_privilege = {
+            "balance": privilege[1],
+            "status": privilege[0]
+        }
+        return json_privilege, 200
+    else:
+        return 404
 
 @app.route('/api/v1/privileges/<user>', methods=["GET"])
 def get_all_privilege(user: str):
-    privilegedb.create_privilegedb()
+    print(user)
+    privilegedb = Privilegedb()
     privilege, history = privilegedb.get_all_privilege(user)
-    json_history = []
-    for i in history:
-        histor = {
-            "date": i[0],
-            "ticketUid": i[1],
-            "balanceDiff": i[2],
-            "operationType": i[3]
-        }
-        json_history.append(histor)
+    print(privilege)
+    if privilege:
+        json_history = []
+        if history:
+            for i in history:
+                histor = {
+                    "date": i[0],
+                    "ticketUid": i[1],
+                    "balanceDiff": i[2],
+                    "operationType": i[3]
+                }
+                json_history.append(histor)
 
-    json_privilege = {
-        "balance": privilege[1],
-        "status": privilege[0],
-        "history": json_history
-    }
-    return json_privilege, 200
+        json_privilege = {
+            "balance": privilege[1],
+            "status": privilege[0],
+            "history": json_history
+        }
+        return json_privilege, 200
+    else:
+        return {}, 404
 
 
 @app.route("/api/v1/buy", methods=["POST"])
 def minus_bonuses():
-    privilegedb.create_privilegedb()
+    privilegedb = Privilegedb()
     user = request.headers
     user = user["X-User-Name"]
     json_buy = request.json
@@ -73,7 +77,7 @@ def minus_bonuses():
 
 @app.route("/api/v1/back_bonuses", methods=["POST"])
 def back_bonuses():
-    privilegedb.create_privilegedb()
+    privilegedb = Privilegedb()
     user = request.headers
     user = user["X-User-Name"]
     json_buy = request.json
@@ -86,6 +90,5 @@ def back_bonuses():
 
 
 if __name__ == '__main__':
-    privilegedb.create_privilegedb()
     app.run(port=8050)
 
