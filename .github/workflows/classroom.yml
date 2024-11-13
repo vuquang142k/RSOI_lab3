@@ -29,16 +29,12 @@ jobs:
         env:
           WAIT_PORTS: 8080,8070,8060,8050
 
-      - name: Sleep for 25 seconds
-        run: sleep 25s
-        shell: bash
-
       - name: Run API Tests
         timeout-minutes: 5
         run: ./scripts/test-script.sh
         env:
           VARIANT: v1
-          SERVICE_NAME: bonus
+          SERVICE_NAME: privilege
           PORT_NUMBER: 8050
 
       - uses: education/autograding@v1

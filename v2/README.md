@@ -60,7 +60,7 @@ hotels:
 
 loyalty:
   - id: 1
-    username: "lolo pepe"
+    username: "Test Max"
     reservation_count: 25
     status: "GOLD"
     discount: 10
