@@ -776,7 +776,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"flightNumber\", \"AFL031\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},
@@ -1472,7 +1472,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"flightNumber\", \"AFL031\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},

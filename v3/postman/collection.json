@@ -1012,7 +1012,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"carUid\", \"109b42f3-198d-4c89-9276-a7520a7120ab\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},
@@ -1553,7 +1553,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"carUid\", \"109b42f3-198d-4c89-9276-a7520a7120ab\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},

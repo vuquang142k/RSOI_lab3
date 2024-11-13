@@ -823,7 +823,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"hotelUid\", \"049161bb-badd-4fa8-9d90-87c9a82b0668\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},
@@ -1535,7 +1535,7 @@
 						"type": "text/javascript",
 						"exec": [
 							"pm.environment.set(\"hotelUid\", \"049161bb-badd-4fa8-9d90-87c9a82b0668\")",
-							"pm.environment.set(\"username\", \"Test Max\")"
+							"pm.environment.set(\"username\", \"lolo pepe\")"
 						]
 					}
 				},
